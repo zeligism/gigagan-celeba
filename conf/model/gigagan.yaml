@@ -1,0 +1,34 @@
+---
+_target_: gigagan_pytorch.gigagan_pytorch.GigaGAN
+train_upsampler: false
+generator:
+    dim_capacity: 8
+    style_network:
+        dim: 64
+        depth: 4
+        dim_text_latent: 64
+    image_size: 256
+    dim_max: 512
+    num_skip_layers_excite: 4
+    unconditional: false
+    text_encoder:
+      _target_: model.PseudoTextEncoder
+      dim_in: ???
+      dim: 64
+      depth: 4
+discriminator:
+    dim_capacity: 16
+    dim_max: 512
+    image_size: 256
+    num_skip_layers_excite: 4
+    unconditional: false
+    text_encoder:
+      _target_: model.PseudoTextEncoder
+      dim_in: ???
+      dim: 64
+      depth: 4
+# We turn off the kwargs below since were not using CLIP
+vision_aided_discriminator: null
+vision_aided_divergence_loss_weight: 0.0
+generator_contrastive_loss_weight: 0.0
+matching_awareness_loss_weight: 0.0
