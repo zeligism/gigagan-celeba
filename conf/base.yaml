@@ -1,13 +1,16 @@
 ---
 defaults:
-  - model: gigagan-lite
+  - model: gigagan-tiny
+  - _self_
 
+load_latest_model: true
+num_workers: 2
 data_dir: ../PrivacyGANRes/data/
 image_size: ${oc.select:model.generator.input_image_size,${model.generator.image_size}}
-num_workers: 2
-
 min_occurences: 30
-batch_size: 4
+cond_dim: ???  # changes based on `min_occurrence`
+
+batch_size: 32
 steps: 100
 grad_accum_every: 8
 
@@ -15,5 +18,6 @@ model:
   learning_rate: 2e-4
   discr_aux_recon_loss_weight: 1.0
   multiscale_divergence_loss_weight: 0.1
-  num_samples: 32
+  num_samples: ${batch_size}
   amp: true
+  save_and_sample_every: 500

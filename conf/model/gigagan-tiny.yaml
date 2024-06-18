@@ -1,15 +1,14 @@
 ---
 _target_: gigagan_pytorch.gigagan_pytorch.GigaGAN
-train_upsampler: true
+train_upsampler: false
 generator:
-    dim_capacity: 8
+    dim_capacity: 2
     style_network:
-        dim: 64
+        dim: 32
         depth: 4
-        dim_text_latent: 64
-    image_size: 1024
-    input_image_size: 256
-    dim_max: 512
+        dim_text_latent: 32
+    image_size: 64
+    dim_max: 256
     num_skip_layers_excite: 4
     unconditional: false
     text_encoder:
@@ -18,16 +17,15 @@ generator:
       dim: ${model.generator.style_network.dim_text_latent}
       depth: 4
 discriminator:
-    dim_capacity: 16
-    dim_max: 512
+    dim_capacity: 4
+    dim_max: 256
     image_size: ${model.generator.image_size}
     num_skip_layers_excite: 4
-    multiscale_input_resolutions: (512,)
     unconditional: false
     text_encoder:
       _target_: celeba_encoder.PseudoTextEncoder
       dim_in: ${cond_dim}
-      dim: 64
+      dim: ${model.generator.style_network.dim_text_latent}
       depth: 4
 # We turn off the kwargs below since were not using CLIP
 vision_aided_discriminator: null

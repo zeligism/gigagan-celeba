@@ -12,20 +12,20 @@ generator:
     num_skip_layers_excite: 4
     unconditional: false
     text_encoder:
-      _target_: model.PseudoTextEncoder
-      dim_in: ???
-      dim: 64
+      _target_: celeba_encoder.PseudoTextEncoder
+      dim_in: ${cond_dim}
+      dim: ${model.generator.style_network.dim_text_latent}
       depth: 4
 discriminator:
     dim_capacity: 16
     dim_max: 512
-    image_size: 256
+    image_size: ${model.generator.image_size}
     num_skip_layers_excite: 4
     unconditional: false
     text_encoder:
-      _target_: model.PseudoTextEncoder
-      dim_in: ???
-      dim: 64
+      _target_: celeba_encoder.PseudoTextEncoder
+      dim_in: ${cond_dim}
+      dim: ${model.generator.style_network.dim_text_latent}
       depth: 4
 # We turn off the kwargs below since were not using CLIP
 vision_aided_discriminator: null

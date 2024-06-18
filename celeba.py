@@ -1,17 +1,13 @@
 
 
-import torch.nn as nn
-import numpy as np
 import os
 import PIL
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Tuple
 from collections import defaultdict
 import csv
 
-import torch.nn.functional as F
 import torch
-from torchvision.utils import make_grid
-from torch.utils.data import Dataset
+import torch.nn.functional as F
 from torchvision.datasets import CelebA
 
 
@@ -137,109 +133,3 @@ class CelebAHQ(CelebA):
             target = None
 
         return image, target
-
-
-class PrivacyFaces(Dataset):
-    def __init__(self, imgs, origin_idx, neighbor_idx, id_labels, transform=None):
-        self.imgs = imgs
-        self.origin_idx = origin_idx
-        self.neighbor_idx = neighbor_idx
-        self.transform = transform
-        self.id_labels = id_labels.astype(int)
-
-    def __len__(self):
-        return len(self.origin_idx)
-
-    def __getitem__(self, index):
-        pair_imgs = self.imgs[index]
-        img0 = pair_imgs[0]
-        img1 = pair_imgs[1]
-        #         img =torch.from_numpy(img).double()
-        if self.transform:
-            img0 = self.transform(img0).float()
-            img1 = self.transform(img1).float()
-        label0 = self.id_labels[self.origin_idx[index]]
-        label1 = self.id_labels[self.neighbor_idx[index]]
-        return img0, img1, label0, label1
-
-
-class HLoss(nn.Module):
-    def __init__(self):
-        super(HLoss, self).__init__()
-
-    def forward(self, x):
-        b = F.softmax(x, dim=1) * F.log_softmax(x, dim=1)
-        b = -1.0 * torch.sum(b,dim=1)
-        return torch.mean(b)
-
-
-def load_data(img_size, max_id):
-    root_dir = 'data/'
-    imgs = np.load(root_dir + 'imgs%d_id%d.npy' % (img_size, max_id))
-    origin_idx = np.load(root_dir + 'origin_idx_id%d.npy' % max_id)
-    neighbor_idx = np.load(root_dir + 'neighbor_idx_id%d.npy' % max_id)
-    sub_id_data = np.load(root_dir + 'sub_id_data.npy')
-    return imgs, origin_idx, neighbor_idx, sub_id_data
-
-
-@torch.no_grad()
-def tensor_to_np(tensor):
-    tensor = tensor.cpu().numpy() * 255 + 0.5
-    ndarr = tensor.clip(0, 255).astype(np.uint8).transpose(1, 2, 0)
-    if ndarr.shape[-1] == 1:
-        ndarr = ndarr.squeeze(2)
-    return ndarr
-
-
-def D_criterion_hinge(D_real, D_fake):
-    return torch.mean(F.relu(1. - D_real) + F.relu(1. + D_fake))
-
-
-def G_criterion_hinge(D_fake):
-    return -torch.mean(D_fake)
-
-
-def count_params(m):
-    return sum(p.numel() for p in m.parameters())
-
-
-@torch.no_grad()
-def update_G_progress(model, fixed_variables, celeba_hq=False, limit=10, device=None):
-    # unpack fixed variables and take first `limit` values
-    fixed_latents, fixed_data = fixed_variables
-    fixed_zc, fixed_zs = fixed_latents
-    fixed_zc = fixed_zc[:limit].to(device)
-    fixed_zs = fixed_zs[:limit].to(device)
-    # transfer to device
-    if celeba_hq:
-        fixed_x, (fixed_attr, fixed_y) = fixed_data
-        fixed_x = fixed_x[:limit].to(device)
-        fixed_y = fixed_y[:limit].to(device).long()
-        fixed_attr = fixed_attr[:limit].to(device).float()
-        rand_attr = torch.rand_like(fixed_attr).round()
-    else:
-        fixed_x, _, fixed_y, _ = fixed_data
-        fixed_x = fixed_x[:limit].to(device)
-        fixed_y = fixed_y[:limit].to(device).long()
-        fixed_attr = None
-        rand_attr = None
-    # generate new output from fixed variables and contrast with random variables
-    zc = model.sample_latent(limit, device=device)
-    zs = model.sample_latent(limit, device=device)
-    # model.eval()
-    im_grid = torch.cat([
-        model.generate(fixed_zc, fixed_zs, label=fixed_y, cond=fixed_attr, alpha=1.0),
-        model.generate(fixed_zc, fixed_zs, label=fixed_y, cond=fixed_attr, alpha=0.5),
-        model.generate(fixed_zc, fixed_zs, label=fixed_y, cond=fixed_attr, alpha=0.0),
-        model.generate(fixed_zc, zs, label=fixed_y, cond=fixed_attr, alpha=0.0),
-        model.generate(zc, fixed_zs, label=fixed_y, cond=fixed_attr, alpha=0.0),
-        model.generate(zc, fixed_zs, label=None, cond=fixed_attr, alpha=0.0),
-        model.generate(zc, fixed_zs, label=fixed_y, cond=rand_attr, alpha=0.0),
-        model.generate(zc, fixed_zs, label=None, cond=rand_attr, alpha=0.0),
-    ], dim=0)
-    # model.train()
-    im_grid = 0.5 * im_grid + 0.5  # inv_normalize to [0,1]
-    grid = make_grid(im_grid, nrow=limit, padding=2).cpu()
-    return grid
-
-
