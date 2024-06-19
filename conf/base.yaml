@@ -11,13 +11,15 @@ min_occurences: 30
 cond_dim: ???  # changes based on `min_occurrence`
 
 batch_size: 32
+grad_accum_every: 8  # aka num of sequential batches (reduces memory overhead)
 steps: 100
-grad_accum_every: 8
 
 model:
-  learning_rate: 2e-4
-  discr_aux_recon_loss_weight: 1.0
+  learning_rate: 3e-4
+  discr_aux_recon_loss_weight: 0.5
   multiscale_divergence_loss_weight: 0.1
   num_samples: ${batch_size}
-  amp: true
   save_and_sample_every: 500
+  amp: true
+  accelerate_kwargs:
+    gradient_accumulation_steps: ${grad_accum_every}

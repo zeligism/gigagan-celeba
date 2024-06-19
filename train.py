@@ -16,13 +16,27 @@ from celeba import CelebAHQ
 from gigagan_pytorch import GigaGAN
 
 
+def load_latest_model(gan):
+    i = -1
+    for path in glob.glob(os.path.join(gan.model_folder, f"model-*.ckpt")):
+        try: i = max(i, int(path.split(".ckpt")[-2].split("model-")[-1]))
+        except ValueError: pass
+    if i >= 0:
+        model_path = os.path.join(gan.model_folder, f"model-{i}.ckpt")
+        gan.load(model_path)
+        print(f"Loaded latest model '{model_path}'")
+    else:
+        print(f"Couldn't find any trained model in '{gan.model_folder}'")
+        print("Training model from scratch.")
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="base")
 def main(cfg):
     mps_is_available = torch.backends.mps.is_available() and torch.backends.mps.is_built()
     device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if mps_is_available else "cpu"))
     print("Device =", device)
     if device.type in ("mps", "cpu"):
-        cfg.amp = False  # amp is only used in gpu
+        cfg.model.amp = False  # amp is only used in gpu
 
     transform = transforms.Compose([
         transforms.Resize(cfg.image_size),
@@ -35,17 +49,8 @@ def main(cfg):
     cfg.cond_dim = dataset.num_ids + dataset.num_attrs
 
     gan: GigaGAN = instantiate(cfg.model).to(device)
-    # Try loading the latest model
     if cfg.load_latest_model:
-        i = -1
-        for path in glob.glob(os.path.join(gan.model_folder, f"model-*.ckpt")):
-            i = max(i, int(path.split(".ckpt")[-2].split("model-")[-1]))
-        if i >= 0:
-            gan.load(os.path.join(gan.model_folder, f"model-{i}.ckpt"))
-        else:
-            print(f"Couldn't find any trained model in '{gan.model_folder}'")
-            print("Training model from scratch.")
-    # Train
+        load_latest_model(gan)
     gan.set_dataloader(dataloader)
     gan(steps=cfg.steps, grad_accum_every=cfg.grad_accum_every)
 

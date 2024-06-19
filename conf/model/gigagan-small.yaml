@@ -6,7 +6,7 @@ generator:
     style_network:
         dim: 64
         depth: 4
-        dim_text_latent: 64
+        dim_text_latent: 128
     image_size: 64
     dim_max: 256
     num_skip_layers_excite: 4
